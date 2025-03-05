@@ -1,0 +1,2 @@
+model_checkpoint_path: "/home/mxd/software/github/tensorflow_practice/chap06/pb_ema/add"
+all_model_checkpoint_paths: "/home/mxd/software/github/tensorflow_practice/chap06/pb_ema/add"

@@ -1,0 +1,4 @@
+model_checkpoint_path: "/home/mxd/software/github/tf_practice/chap10/models/mnist-1999"
+all_model_checkpoint_paths: "/home/mxd/software/github/tf_practice/chap10/models/mnist-0"
+all_model_checkpoint_paths: "/home/mxd/software/github/tf_practice/chap10/models/mnist-1000"
+all_model_checkpoint_paths: "/home/mxd/software/github/tf_practice/chap10/models/mnist-1999"

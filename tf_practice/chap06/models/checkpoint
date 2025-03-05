@@ -1,0 +1,6 @@
+model_checkpoint_path: "/home/mxd/software/github/tensorflow_practice/chap06/models/lenet-39001"
+all_model_checkpoint_paths: "/home/mxd/software/github/tensorflow_practice/chap06/models/lenet-35001"
+all_model_checkpoint_paths: "/home/mxd/software/github/tensorflow_practice/chap06/models/lenet-36001"
+all_model_checkpoint_paths: "/home/mxd/software/github/tensorflow_practice/chap06/models/lenet-37001"
+all_model_checkpoint_paths: "/home/mxd/software/github/tensorflow_practice/chap06/models/lenet-38001"
+all_model_checkpoint_paths: "/home/mxd/software/github/tensorflow_practice/chap06/models/lenet-39001"

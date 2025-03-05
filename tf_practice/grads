@@ -1,0 +1,17 @@
+[(
+<tf.Tensor 'GPU_0/gradients/GPU_0/layer1-conv1/Conv2D_grad/tuple/control_dependency_1:0' shape=(5, 5, 1, 32) dtype=float32>, 
+<tf.Variable 'layer1-conv1/weight:0' shape=(5, 5, 1, 32) dtype=float32_ref>), 
+
+(<tf.Tensor 'GPU_0/gradients/GPU_0/layer1-conv1/BiasAdd_grad/tuple/control_dependency_1:0' shape=(32,) dtype=float32>, <tf.Variable 'layer1-conv1/bias:0' shape=(32,) dtype=float32_ref>), 
+
+(<tf.Tensor 'GPU_0/gradients/GPU_0/layer3-conv2/Conv2D_grad/tuple/control_dependency_1:0' shape=(5, 5, 32, 64) dtype=float32>, <tf.Variable 'layer3-conv2/weight:0' shape=(5, 5, 32, 64) dtype=float32_ref>), 
+
+(<tf.Tensor 'GPU_0/gradients/GPU_0/layer3-conv2/BiasAdd_grad/tuple/control_dependency_1:0' shape=(64,) dtype=float32>, <tf.Variable 'layer3-conv2/bias:0' shape=(64,) dtype=float32_ref>), 
+
+(<tf.Tensor 'GPU_0/gradients/AddN_1:0' shape=(3136, 512) dtype=float32>, <tf.Variable 'layer5-fc1/weight:0' shape=(3136, 512) dtype=float32_ref>), 
+
+(<tf.Tensor 'GPU_0/gradients/GPU_0/layer5-fc1/add_grad/tuple/control_dependency_1:0' shape=(512,) dtype=float32>, <tf.Variable 'layer5-fc1/bias:0' shape=(512,) dtype=float32_ref>), 
+
+(<tf.Tensor 'GPU_0/gradients/AddN:0' shape=(512, 10) dtype=float32>, <tf.Variable 'layer6-fc2/weight:0' shape=(512, 10) dtype=float32_ref>), 
+
+(<tf.Tensor 'GPU_0/gradients/GPU_0/layer6-fc2/add_grad/tuple/control_dependency_1:0' shape=(10,) dtype=float32>, <tf.Variable 'layer6-fc2/bias:0' shape=(10,) dtype=float32_ref>)]
