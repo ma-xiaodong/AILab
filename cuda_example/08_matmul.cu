@@ -1,106 +1,133 @@
-#include <stdio.h>
-#include <sys/time.h>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
+#include <vector>
 
-#define M (1 << 10)
-#define N (1 << 12)
-#define K (1 << 10)
+#include <cuda.h>
+#include <cuda_runtime.h>
 
-__global__ void vector_add(float *out, float *a, float *b) {
-    int idxN = threadIdx.x;
-    int idxM = blockIdx.x;
-    float result = 0;
+inline void __checkCudaErrors(cudaError_t err, const char *file, const int line) {
+    if (cudaSuccess != err) {
+        const char *errorStr = cudaGetErrorString(err);
 
-    for(int i = 0; i < K; i++) {
-        result += a[idxM * K + i] * b[N * i + idxN];
+        fprintf(stderr,
+            "checkCudaErrors() Driver API error = %04d \"%s\" from file <%s>, "
+            "line %i.\n",
+            err, errorStr, file, line);
+        exit(EXIT_FAILURE);
     }
+}
 
+#define block_size 32
+
+#define checkCudaErrors(err) __checkCudaErrors(err, __FILE__, __LINE__)
+
+__global__ void gemm(float *out, float *a, float *b, 
+                     int M, int N, int K) {
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
+
+    int bx = blockIdx.x;
+    int by = blockIdx.y;
+
+    int idxM = bx * block_size + tx;
+    int idxN = by * block_size + ty;
+
+    float result = 0;
+    for(int i = 0; i < K; i++) {
+        int idxA = idxM * K + i;
+        int idxB = N * i + idxN;
+        result += a[idxA] * b[idxB];
+    }
     out[idxM * N + idxN] = result;
 }
 
 int main() {
+    int M = 5120, N = 4096, K = 4096;
+
     float *matrixA, *matrixB, *matrixC;
-    float *goldenC;
     float *dMatrixA, *dMatrixB, *dMatrixC;
 
     // Allocate host memory.
-    matrixA = (float *)malloc(sizeof(float) * M * K);
-    matrixB = (float *)malloc(sizeof(float) * K * N);
-    matrixC = (float *)malloc(sizeof(float) * M * N);
-    goldenC = (float *)malloc(sizeof(float) * M * N);
+    checkCudaErrors(cudaMallocHost(&matrixA, sizeof(float) * M * K));
+    checkCudaErrors(cudaMallocHost(&matrixB, sizeof(float) * K * N));
+    checkCudaErrors(cudaMallocHost(&matrixC, sizeof(float) * M * N));
 
     // Allocate device memory.
-    cudaMalloc((void**)&dMatrixA, sizeof(float) * M * K);
-    cudaMalloc((void**)&dMatrixB, sizeof(float) * K * N);
-    cudaMalloc((void**)&dMatrixC, sizeof(float) * M * N);
+    checkCudaErrors(cudaMalloc((void**)&dMatrixA, sizeof(float) * M * K));
+    checkCudaErrors(cudaMalloc((void**)&dMatrixB, sizeof(float) * K * N));
+    checkCudaErrors(cudaMalloc((void**)&dMatrixC, sizeof(float) * M * N));
 
     // Initialize matrixA
     for(int i = 0; i < M; i++) {
         for(int j = 0; j < K; j++) {
-          if(j % 3 == 0)
-              matrixA[i * K + i] = 0;
-          else
-              matrixA[i * K + i] = 1.2;
+            matrixA[i * K + j] = float(rand()) / RAND_MAX;
         }
     }
     // Initialize matrixB
     for(int i = 0; i < K; i++) {
         for(int j = 0; j < N; j++) {
-            if(j % 5 == 0)
-                matrixB[i * N + i] = 0;
-            else
-                matrixB[i * N + i] = 2.1;
+            matrixB[i * N + j] = float(rand()) / RAND_MAX;
       }
     }
     
     // Transfer data from host to device.
-    cudaMemcpy(dMatrixA, matrixA, sizeof(float) * M * K, cudaMemcpyHostToDevice);
-    cudaMemcpy(dMatrixB, matrixB, sizeof(float) * K * N, cudaMemcpyHostToDevice);
+    checkCudaErrors(cudaMemcpy(dMatrixA, matrixA, sizeof(float) * M * K, cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMemcpy(dMatrixB, matrixB, sizeof(float) * K * N, cudaMemcpyHostToDevice));
 
-    // int block_size = 256;
-    // int grid_size = (N + block_size) / block_size;
-    vector_add<<<M, N>>>(dMatrixC, dMatrixA, dMatrixB);
-    // cudaDeviceSynchronize();
+    cudaEvent_t start, end;
+    checkCudaErrors(cudaEventCreate(&start));
+    checkCudaErrors(cudaEventCreate(&end));
+
+    dim3 threads(block_size, block_size);
+    dim3 grids((M + block_size - 1) / block_size, (N + block_size - 1) / block_size);
+
+    checkCudaErrors(cudaEventRecord(start, 0));
+    gemm<<<grids, threads>>>(dMatrixC, dMatrixA, dMatrixB, M, N, K);
+    checkCudaErrors(cudaEventRecord(end, 0));
+    checkCudaErrors(cudaEventSynchronize(end));
+
+    float deviceUsedTime;
+    checkCudaErrors(cudaEventElapsedTime(&deviceUsedTime, start, end));
+    checkCudaErrors(cudaEventDestroy(start));
+    checkCudaErrors(cudaEventDestroy(end));
+    
+    long workload = long(M) * N * K * 2;
+    double gflops = (double(workload) / 1e9) / (double(deviceUsedTime) / 1e3);
+    printf("GPU time: %f, performances: %f.\n", deviceUsedTime, gflops);
 
     // Transfer data from device to host.
-    cudaMemcpy(matrixC, dMatrixC, sizeof(float) * M * N, cudaMemcpyDeviceToHost);
-
+    checkCudaErrors(cudaMemcpy(matrixC, dMatrixC, sizeof(float) * M * N, cudaMemcpyDeviceToHost));
     // Compute the golden data.
-    struct timeval tv_begin, tv_end;
-    float timeUsed;
-    gettimeofday(&tv_begin, NULL);
-    for(int i = 0; i < M; i++) {
-        for(int j = 0; j < N; j++) {
-            goldenC[i * N + j]= 0;
-            for (int k = 0; k < K; k++) {
-                goldenC[i * N + j] += matrixA[i * K + k] * matrixB[k * N + j];
-            }
-        }
-    }
-    gettimeofday(&tv_end, NULL);
-    timeUsed = (tv_end.tv_sec - tv_begin.tv_sec) * 1000 + (tv_end.tv_usec - tv_begin.tv_usec) / 1000.0;
-    printf("CPU time: %.2fms.\n", timeUsed);
-
-    // Check the result.
     bool error = false;
-    for(int i = 0; i < M; i++) {
-        for(int j = 0; j < N; j++) {
-            if(matrixC[i * N + j] != goldenC[i * N + j]) {
-                printf("i: %d, j: %d, matrixC: %f, goldenC: %f.\n", i, j, matrixC[i * N + j], goldenC[i * N + j]);
+
+    // Use stride for i and j to check less results to reduce the waiting time.
+    for(int i = 0; i < M; i += 3) {
+        for(int j = 0; j < N; j += 7) {
+            float tmp = 0;
+            for (int k = 0; k < K; k++) {
+                tmp += matrixA[i * K + k] * matrixB[k * N + j];
+            }
+            if(fabs(matrixC[i * N + j] - tmp) > 1e-3) {
+                printf("i: %d, j: %d, matrixC: %f, goldenC: %f.\n", i, j, matrixC[i * N + j], tmp);
                 error = true;
                 break;
             }
         }
+        if(error)
+          break;
     }
 
     // Free host memory.
-    free(matrixA);
-    free(matrixB);
-    free(matrixC);
+    checkCudaErrors(cudaFreeHost(matrixA));
+    checkCudaErrors(cudaFreeHost(matrixB));
+    checkCudaErrors(cudaFreeHost(matrixC));
 
     // Free device memory.
-    cudaFree(dMatrixA);
-    cudaFree(dMatrixB);
-    cudaFree(dMatrixC);
+    checkCudaErrors(cudaFree(dMatrixA));
+    checkCudaErrors(cudaFree(dMatrixB));
+    checkCudaErrors(cudaFree(dMatrixC));
 
     if(error)
         printf("Incorrect result!\n");
