@@ -20,7 +20,6 @@ inline void __checkCudaErrors(cudaError_t err, const char *file, const int line)
 }
 
 #define block_size 32
-
 #define checkCudaErrors(err) __checkCudaErrors(err, __FILE__, __LINE__)
 
 __global__ void gemm(float *out, float *a, float *b, 
@@ -35,10 +34,20 @@ __global__ void gemm(float *out, float *a, float *b,
     int idxN = bx * block_size + tx;
 
     float result = 0;
-    for(int i = 0; i < K; i++) {
-        int idxA = idxM * K + i;
-        int idxB = N * i + idxN;
-        result += a[idxA] * b[idxB];
+    for(int idxK = 0; idxK < K; idxK += block_size) {
+        __shared__ float As[block_size][block_size];
+        __shared__ float Bs[block_size][block_size];
+
+        // load a square (block_size, block_size) into shared memory.
+        As[ty][tx] = a[idxM * K + idxK + tx];
+        Bs[ty][tx] = b[N * (idxK + ty)+ idxN];
+
+        __syncthreads();
+
+        for (int idxBlk = 0; idxBlk < block_size; idxBlk++) {
+            result += As[ty][idxBlk] * Bs[idxBlk][tx];
+        }
+        __syncthreads();
     }
     out[idxM * N + idxN] = result;
 }
