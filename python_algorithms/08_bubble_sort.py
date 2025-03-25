@@ -3,19 +3,16 @@ def swap(i, j, array):
     array[i] = array[j]
     array[j] = tmp
 
-def selection_sort(array):
+def bubble_sort(array):
     for i in range(len(array)):
-        min_pos = i
-        for j in range(i + 1, len(array)):
-            if (array[j] < array[min_pos]):
-                min_pos = j
-        if (i != min_pos):
-            swap(i, min_pos, array)
+        for j in range(len(array) - 1, i, -1):
+            if (array[j] < array[j - 1]):
+                swap(j - 1, j, array)
         print(array)
     return
 
 if __name__ == "__main__":
     array = [9, 15, 18, 3, 11, 6, 5]
     print("Array before sorted:", array)
-    selection_sort(array)
+    bubble_sort(array)
     print("Array after sorted: ", array)
