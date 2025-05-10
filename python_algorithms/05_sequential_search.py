@@ -1,4 +1,4 @@
-target = 12
+target = 8
 array = [3, 5, 6, 8, 11, 15, 20, 21]
 
 print("Array:", array)
